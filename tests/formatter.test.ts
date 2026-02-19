@@ -3,6 +3,7 @@ import { formatTable } from "../src/formatter.js";
 import type { CostEntry } from "../src/providers/aws.js";
 
 const baseOptions = {
+  title: "AWS Cost Report",
   startDate: "2026-02-01",
   endDate: "2026-02-19",
   profile: "default",
@@ -10,10 +11,26 @@ const baseOptions = {
 };
 
 describe("formatTable", () => {
-  it("includes header with date range and exchange rate", () => {
+  it("includes header with title, date range and exchange rate", () => {
     const output = formatTable([], baseOptions);
     expect(output).toContain("AWS Cost Report: 2026-02-01 → 2026-02-19");
     expect(output).toContain("Exchange rate: 1 USD = ¥150.00");
+  });
+
+  it("uses the provided title", () => {
+    const output = formatTable([], { ...baseOptions, title: "OpenAI Cost Report" });
+    expect(output).toContain("OpenAI Cost Report: 2026-02-01 → 2026-02-19");
+  });
+
+  it("shows profile when provided", () => {
+    const output = formatTable([], baseOptions);
+    expect(output).toContain("Profile: default");
+  });
+
+  it("omits profile line when not provided", () => {
+    const output = formatTable([], { ...baseOptions, profile: undefined });
+    expect(output).not.toContain("Profile:");
+    expect(output).toContain("Exchange rate:");
   });
 
   it("shows a message when no entries", () => {

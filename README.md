@@ -5,7 +5,8 @@ AI/クラウドサービスのコストを、月次確定前に円建てで確�
 ## 対応プロバイダー
 
 - AWS (Cost Explorer API)
-- Anthropic, OpenAI, GCP — 今後追加予定
+- OpenAI (Admin API)
+- GCP — 今後追加予定
 
 ## インストール
 
@@ -15,25 +16,38 @@ npm install
 
 ## 使い方
 
+### AWS
+
 ```bash
 # 当月のAWSコスト（日次）
-npx tsx src/cli.ts aws
+npx tsx src/cli.ts aws --profile cost-viewer
 
 # 期間指定
-npx tsx src/cli.ts aws --start 2026-01-01 --end 2026-01-31
+npx tsx src/cli.ts aws --profile cost-viewer --start 2026-01-01 --end 2026-01-31
 
 # 月次集計
-npx tsx src/cli.ts aws --granularity MONTHLY
+npx tsx src/cli.ts aws --profile cost-viewer --granularity MONTHLY
+```
 
-# AWSプロファイル指定
-npx tsx src/cli.ts aws --profile cost-viewer
+### OpenAI
+
+```bash
+# 環境変数でAPIキーを設定（推奨）
+export OPENAI_ADMIN_API_KEY=sk-admin-...
+npx tsx src/cli.ts openai
+
+# または直接指定
+npx tsx src/cli.ts openai --api-key sk-admin-...
+
+# 期間指定
+npx tsx src/cli.ts openai --start 2026-02-01 --end 2026-02-19
 ```
 
 ### 出力例
 
 ```
 AWS Cost Report: 2026-02-01 → 2026-02-19
-Profile: default | Exchange rate: 1 USD = ¥152.30
+Profile: cost-viewer | Exchange rate: 1 USD = ¥152.30
 
 Date        Service                    USD         JPY
 ----------- -------------------------- ----------- -----------
@@ -43,6 +57,8 @@ Date        Service                    USD         JPY
 ----------- -------------------------- ----------- -----------
 TOTAL                                      $12.34     ¥1,880
 ```
+
+---
 
 ## AWS セットアップ
 
@@ -80,10 +96,31 @@ aws_secret_access_key = ...
 npx tsx src/cli.ts aws --profile cost-viewer
 ```
 
-**または環境変数:**
+---
+
+## OpenAI セットアップ
+
+### Admin API キーの作成
+
+通常のプロジェクトAPIキーとは別に、**Admin API Key** が必要です。
+
+1. [platform.openai.com](https://platform.openai.com) にログイン
+2. 左メニュー「**Organization**」→「**Admin API keys**」
+3. 「Create new secret key」
+
+### キーの設定
+
+プロジェクト内に保存せず、環境変数を使用してください。
+
 ```bash
-AWS_ACCESS_KEY_ID=AKIA... AWS_SECRET_ACCESS_KEY=... npx tsx src/cli.ts aws
+# 毎回設定する場合
+export OPENAI_ADMIN_API_KEY=sk-admin-...
+
+# または PowerShell
+$env:OPENAI_ADMIN_API_KEY="sk-admin-..."
 ```
+
+---
 
 ## 開発
 

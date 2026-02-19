@@ -27,17 +27,19 @@ function separator(): string {
 }
 
 export interface FormatOptions {
+  title: string;
   startDate: string;
   endDate: string;
-  profile: string;
+  profile?: string;
   rate: number;
 }
 
 export function formatTable(entries: CostEntry[], options: FormatOptions): string {
   const lines: string[] = [];
 
-  lines.push(`AWS Cost Report: ${options.startDate} → ${options.endDate}`);
-  lines.push(`Profile: ${options.profile} | Exchange rate: 1 USD = ¥${options.rate.toFixed(2)}`);
+  lines.push(`${options.title}: ${options.startDate} → ${options.endDate}`);
+  const profilePart = options.profile ? `Profile: ${options.profile} | ` : "";
+  lines.push(`${profilePart}Exchange rate: 1 USD = ¥${options.rate.toFixed(2)}`);
   lines.push("");
 
   // Header

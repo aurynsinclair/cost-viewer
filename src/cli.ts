@@ -1,6 +1,8 @@
 #!/usr/bin/env node
+import "dotenv/config";
 import { Command } from "commander";
 import { getAwsCosts } from "./providers/aws.js";
+import { getOpenAiCosts } from "./providers/openai.js";
 import { fetchExchangeRate } from "./currency.js";
 import { formatTable } from "./formatter.js";
 
@@ -19,7 +21,7 @@ const program = new Command();
 program
   .name("cost-viewer")
   .description("View cloud/AI service costs in JPY")
-  .version("0.1.0");
+  .version("0.2.0");
 
 program
   .command("aws")
@@ -47,9 +49,44 @@ program
       ]);
 
       const output = formatTable(entries, {
+        title: "AWS Cost Report",
         startDate: opts.start,
         endDate: opts.end,
         profile: opts.profile,
+        rate,
+      });
+
+      console.log(output);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`Error: ${message}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command("openai")
+  .description("Show OpenAI costs via Admin API")
+  .option("--start <date>", "Start date (YYYY-MM-DD)", defaultStartDate())
+  .option("--end <date>", "End date (YYYY-MM-DD)", defaultEndDate())
+  .option("--api-key <key>", "OpenAI Admin API key (or env: OPENAI_ADMIN_API_KEY)")
+  .action(async (opts) => {
+    const apiKey = opts.apiKey ?? process.env["OPENAI_ADMIN_API_KEY"];
+    if (!apiKey) {
+      console.error("Error: OpenAI Admin API key is required. Use --api-key or set OPENAI_ADMIN_API_KEY.");
+      process.exit(1);
+    }
+
+    try {
+      const [entries, rate] = await Promise.all([
+        getOpenAiCosts({ startDate: opts.start, endDate: opts.end, apiKey }),
+        fetchExchangeRate(),
+      ]);
+
+      const output = formatTable(entries, {
+        title: "OpenAI Cost Report",
+        startDate: opts.start,
+        endDate: opts.end,
         rate,
       });
 
