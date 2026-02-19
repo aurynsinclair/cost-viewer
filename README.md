@@ -19,14 +19,18 @@ npm install
 ### AWS
 
 ```bash
-# 当月のAWSコスト（日次）
+# 環境変数でプロファイルを設定（推奨）
+export AWS_PROFILE=cost-viewer
+npx tsx src/cli.ts aws
+
+# またはオプションで直接指定
 npx tsx src/cli.ts aws --profile cost-viewer
 
 # 期間指定
-npx tsx src/cli.ts aws --profile cost-viewer --start 2026-01-01 --end 2026-01-31
+npx tsx src/cli.ts aws --start 2026-01-01 --end 2026-01-31
 
 # 月次集計
-npx tsx src/cli.ts aws --profile cost-viewer --granularity MONTHLY
+npx tsx src/cli.ts aws --granularity MONTHLY
 ```
 
 ### OpenAI
@@ -101,9 +105,8 @@ TOTAL                                      $12.34     ¥1,880
 
 ### 2. 認証情報の設定
 
-プロジェクト内に認証情報を保存しないでください。標準のAWS認証チェーンを使用します。
+`~/.aws/credentials` にプロファイルを作成してください。
 
-**推奨: AWS プロファイル**
 ```bash
 # ~/.aws/credentials
 [cost-viewer]
@@ -111,8 +114,18 @@ aws_access_key_id = AKIA...
 aws_secret_access_key = ...
 ```
 
+**環境変数で設定（推奨）:**
 ```bash
-npx tsx src/cli.ts aws --profile cost-viewer
+# .env ファイルに記載
+AWS_PROFILE=cost-viewer
+
+# クレデンシャルファイルのパスを変更する場合（オプション）
+# AWS_SHARED_CREDENTIALS_FILE=C:/Users/you/.aws/credentials
+```
+
+```bash
+# --profile を省略して実行可能
+npx tsx src/cli.ts aws
 ```
 
 ---

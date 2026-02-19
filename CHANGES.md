@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.1 (2026-02-20)
+
+### Changed
+- AWS: `--profile` now falls back to `AWS_PROFILE` env var (consistent with OpenAI/GCP pattern)
+- AWS: removed hardcoded `"default"` profile — omit `--profile` to use env var or default credential chain
+
 ## v0.3.0 (2026-02-20)
 
 ### Added

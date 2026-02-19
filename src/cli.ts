@@ -22,7 +22,7 @@ const program = new Command();
 program
   .name("cost-viewer")
   .description("View cloud/AI service costs in JPY")
-  .version("0.3.0");
+  .version("0.3.1");
 
 program
   .command("aws")
@@ -30,8 +30,9 @@ program
   .option("--start <date>", "Start date (YYYY-MM-DD)", defaultStartDate())
   .option("--end <date>", "End date (YYYY-MM-DD)", defaultEndDate())
   .option("--granularity <g>", "DAILY or MONTHLY", "DAILY")
-  .option("--profile <name>", "AWS profile name", "default")
+  .option("--profile <name>", "AWS profile name (or env: AWS_PROFILE)")
   .action(async (opts) => {
+    const profile = opts.profile ?? process.env["AWS_PROFILE"];
     const granularity = opts.granularity.toUpperCase();
     if (granularity !== "DAILY" && granularity !== "MONTHLY") {
       console.error("Error: --granularity must be DAILY or MONTHLY");
@@ -44,7 +45,7 @@ program
           startDate: opts.start,
           endDate: opts.end,
           granularity,
-          profile: opts.profile !== "default" ? opts.profile : undefined,
+          profile,
         }),
         fetchExchangeRate(),
       ]);
@@ -56,7 +57,7 @@ program
         title: "AWS Cost Report",
         startDate: opts.start,
         endDate: opts.end,
-        profile: opts.profile,
+        profile,
         rate,
       });
 
