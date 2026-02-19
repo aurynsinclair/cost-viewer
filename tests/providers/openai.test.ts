@@ -20,8 +20,8 @@ describe("getOpenAiCosts", () => {
           start_time: 1738368000, // 2026-02-01 UTC
           end_time: 1738454400,
           results: [
-            { amount: { currency: "usd", value: 0.13 }, line_item: "gpt-4-turbo-usage" },
-            { amount: { currency: "usd", value: 0.02 }, line_item: "gpt-3.5-turbo-usage" },
+            { amount: { currency: "usd", value: "0.13" }, line_item: "gpt-4-turbo-usage" },
+            { amount: { currency: "usd", value: "0.02" }, line_item: "gpt-3.5-turbo-usage" },
           ],
         },
       ],
@@ -48,7 +48,7 @@ describe("getOpenAiCosts", () => {
         data: [{
           start_time: 1738368000,
           end_time: 1738454400,
-          results: [{ amount: { currency: "usd", value: 0 }, line_item: "some-service" }],
+          results: [{ amount: { currency: "usd", value: "0" }, line_item: "some-service" }],
         }],
       }),
     }));
@@ -102,4 +102,37 @@ describe("getOpenAiCosts", () => {
     const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect((init.headers as Record<string, string>)?.["Authorization"]).toBe("Bearer sk-admin-test");
   });
+
+  it("includes group_by line_item in request URL", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [] }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    await getOpenAiCosts(baseOptions);
+
+    const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("group_by");
+    expect(url).toContain("line_item");
+  });
+
+  it("uses (other) as service name when line_item is null", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        data: [{
+          start_time: 1738368000,
+          end_time: 1738454400,
+          results: [{ amount: { currency: "usd", value: "0.05" }, line_item: null }],
+        }],
+      }),
+    }));
+
+    const entries = await getOpenAiCosts(baseOptions);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.service).toBe("(other)");
+    expect(entries[0]?.amount).toBe(0.05);
+  });
 });
+

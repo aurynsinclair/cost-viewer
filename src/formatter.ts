@@ -89,3 +89,19 @@ export function formatTable(entries: CostEntry[], options: FormatOptions): strin
 
   return lines.join("\n");
 }
+
+export function fillZeroDays(entries: CostEntry[], startDate: string, endDate: string): CostEntry[] {
+  const datesWithEntry = new Set(entries.map(e => e.date));
+  const filled = [...entries];
+
+  const start = new Date(startDate + "T00:00:00Z");
+  const end = new Date(endDate + "T00:00:00Z");
+  for (let d = new Date(start); d < end; d.setUTCDate(d.getUTCDate() + 1)) {
+    const dateStr = d.toISOString().slice(0, 10);
+    if (!datesWithEntry.has(dateStr)) {
+      filled.push({ date: dateStr, service: "-", amount: 0, currency: "USD" });
+    }
+  }
+
+  return filled.sort((a, b) => a.date.localeCompare(b.date));
+}

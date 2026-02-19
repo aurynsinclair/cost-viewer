@@ -4,7 +4,7 @@ import { Command } from "commander";
 import { getAwsCosts } from "./providers/aws.js";
 import { getOpenAiCosts } from "./providers/openai.js";
 import { fetchExchangeRate } from "./currency.js";
-import { formatTable } from "./formatter.js";
+import { formatTable, fillZeroDays } from "./formatter.js";
 
 function defaultStartDate(): string {
   const now = new Date();
@@ -38,7 +38,7 @@ program
     }
 
     try {
-      const [entries, rate] = await Promise.all([
+      const [rawEntries, rate] = await Promise.all([
         getAwsCosts({
           startDate: opts.start,
           endDate: opts.end,
@@ -47,6 +47,9 @@ program
         }),
         fetchExchangeRate(),
       ]);
+      const entries = granularity === "DAILY"
+        ? fillZeroDays(rawEntries, opts.start, opts.end)
+        : rawEntries;
 
       const output = formatTable(entries, {
         title: "AWS Cost Report",
@@ -78,10 +81,11 @@ program
     }
 
     try {
-      const [entries, rate] = await Promise.all([
+      const [rawEntries, rate] = await Promise.all([
         getOpenAiCosts({ startDate: opts.start, endDate: opts.end, apiKey }),
         fetchExchangeRate(),
       ]);
+      const entries = fillZeroDays(rawEntries, opts.start, opts.end);
 
       const output = formatTable(entries, {
         title: "OpenAI Cost Report",

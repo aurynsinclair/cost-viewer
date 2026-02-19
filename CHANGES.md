@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.2.1 (2026-02-19)
+
+### Fixed
+- OpenAI: fetch all pages when `has_more: true` (pagination support)
+- OpenAI: use literal `group_by[]=line_item` in URL (not percent-encoded)
+
+### Added
+- OpenAI: show `-` row for days with no costs (`fillZeroDays`)
+
 ## v0.2.0 (2026-02-19)
 
 ### Added

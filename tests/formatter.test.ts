@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatTable } from "../src/formatter.js";
+import { formatTable, fillZeroDays } from "../src/formatter.js";
 import type { CostEntry } from "../src/providers/aws.js";
 
 const baseOptions = {
@@ -57,5 +57,38 @@ describe("formatTable", () => {
     expect(output).toContain("TOTAL");
     expect(output).toContain("$3.00");
     expect(output).toContain("¥450"); // 3 * 150
+  });
+});
+
+describe("fillZeroDays", () => {
+  it("inserts a '-' entry for dates with no costs", () => {
+    const entries: CostEntry[] = [
+      { date: "2026-02-16", service: "tts", amount: 0.005, currency: "USD" },
+    ];
+    const filled = fillZeroDays(entries, "2026-02-15", "2026-02-18");
+
+    expect(filled).toHaveLength(3); // Feb 15 (zero), Feb 16 (tts), Feb 17 (zero)
+    expect(filled.find(e => e.date === "2026-02-15")?.service).toBe("-");
+    expect(filled.find(e => e.date === "2026-02-17")?.service).toBe("-");
+    expect(filled.find(e => e.date === "2026-02-15")?.amount).toBe(0);
+  });
+
+  it("does not insert zero for a date that already has an entry", () => {
+    const entries: CostEntry[] = [
+      { date: "2026-02-16", service: "tts", amount: 0.005, currency: "USD" },
+    ];
+    const filled = fillZeroDays(entries, "2026-02-16", "2026-02-17");
+
+    expect(filled).toHaveLength(1);
+    expect(filled[0]?.service).toBe("tts");
+  });
+
+  it("returns entries sorted by date", () => {
+    const entries: CostEntry[] = [
+      { date: "2026-02-18", service: "tts", amount: 0.005, currency: "USD" },
+    ];
+    const filled = fillZeroDays(entries, "2026-02-16", "2026-02-19");
+
+    expect(filled.map(e => e.date)).toEqual(["2026-02-16", "2026-02-17", "2026-02-18"]);
   });
 });
