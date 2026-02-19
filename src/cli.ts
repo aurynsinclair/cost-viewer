@@ -5,7 +5,7 @@ import { getAwsCosts } from "./providers/aws.js";
 import { getOpenAiCosts } from "./providers/openai.js";
 import { getGcpCosts } from "./providers/gcp.js";
 import { fetchExchangeRate } from "./currency.js";
-import { formatTable, fillZeroDays } from "./formatter.js";
+import { formatTable, fillZeroDays, mergeProviders, type ProviderResult } from "./formatter.js";
 
 function defaultStartDate(): string {
   const now = new Date();
@@ -22,7 +22,7 @@ const program = new Command();
 program
   .name("cost-viewer")
   .description("View cloud/AI service costs in JPY")
-  .version("0.3.1");
+  .version("0.4.0");
 
 program
   .command("aws")
@@ -152,6 +152,102 @@ program
       console.error(`Error: ${message}`);
       process.exit(1);
     }
+  });
+
+program
+  .command("all")
+  .description("Show combined costs from all configured providers")
+  .option("--start <date>", "Start date (YYYY-MM-DD)", defaultStartDate())
+  .option("--end <date>", "End date (YYYY-MM-DD)", defaultEndDate())
+  .option("--profile <name>", "AWS profile name (or env: AWS_PROFILE)")
+  .action(async (opts) => {
+    let rate: number;
+    try {
+      rate = await fetchExchangeRate();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`Error: Failed to fetch exchange rate: ${msg}`);
+      process.exit(1);
+    }
+
+    const startDate = opts.start;
+    const endDate = opts.end;
+
+    const providerPromises: Array<Promise<ProviderResult | null>> = [];
+
+    // AWS: always attempt (uses default credential chain)
+    const awsProfile = opts.profile ?? process.env["AWS_PROFILE"];
+    providerPromises.push(
+      getAwsCosts({ startDate, endDate, granularity: "DAILY", profile: awsProfile })
+        .then((entries) => ({ name: "AWS", entries }))
+        .catch((err) => {
+          console.error(`[AWS] Skipped: ${err instanceof Error ? err.message : String(err)}`);
+          return null;
+        }),
+    );
+
+    // OpenAI: only if API key is configured
+    const openaiKey = process.env["OPENAI_ADMIN_API_KEY"];
+    if (openaiKey) {
+      providerPromises.push(
+        getOpenAiCosts({ startDate, endDate, apiKey: openaiKey })
+          .then((entries) => ({ name: "OpenAI", entries }))
+          .catch((err) => {
+            console.error(
+              `[OpenAI] Skipped: ${err instanceof Error ? err.message : String(err)}`,
+            );
+            return null;
+          }),
+      );
+    }
+
+    // GCP: only if all required env vars are set
+    const gcpProjectId = process.env["GCP_PROJECT_ID"];
+    const gcpDataset = process.env["GCP_BILLING_DATASET"];
+    const gcpTable = process.env["GCP_BILLING_TABLE"];
+    const gcpKeyFile = process.env["GOOGLE_APPLICATION_CREDENTIALS"];
+    if (gcpProjectId && gcpDataset && gcpTable) {
+      providerPromises.push(
+        getGcpCosts({
+          startDate,
+          endDate,
+          projectId: gcpProjectId,
+          dataset: gcpDataset,
+          table: gcpTable,
+          keyFile: gcpKeyFile,
+        })
+          .then((entries) => ({ name: "GCP", entries }))
+          .catch((err) => {
+            console.error(`[GCP] Skipped: ${err instanceof Error ? err.message : String(err)}`);
+            return null;
+          }),
+      );
+    }
+
+    const results = (await Promise.all(providerPromises)).filter(
+      (r): r is ProviderResult => r !== null,
+    );
+
+    if (results.length === 0) {
+      console.error(
+        "Error: No providers returned data. Check your credentials and environment variables.",
+      );
+      process.exit(1);
+    }
+
+    const merged = mergeProviders(results);
+    const entries = fillZeroDays(merged, startDate, endDate);
+    const providerNames = results.map((r) => r.name).join(" + ");
+
+    const output = formatTable(entries, {
+      title: `Cost Report (${providerNames})`,
+      startDate,
+      endDate,
+      rate,
+      sourceCurrency: "mixed",
+    });
+
+    console.log(output);
   });
 
 program.parse();

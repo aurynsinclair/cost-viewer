@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.4.0 (2026-02-20)
+
+### Added
+- `cost-viewer all` command: combined view of all configured providers
+- Auto-detects configured providers via environment variables
+- USD costs (AWS, OpenAI) shown with original USD + converted JPY; GCP JPY costs shown directly
+- Graceful degradation: failed providers are skipped with stderr warning
+- Formatter: mixed currency mode for per-entry USD/JPY display
+
 ## v0.3.1 (2026-02-20)
 
 ### Changed

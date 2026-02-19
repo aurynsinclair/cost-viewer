@@ -32,6 +32,7 @@ export interface FormatOptions {
 
 export function formatTable(entries: CostEntry[], options: FormatOptions): string {
   const jpyOnly = options.sourceCurrency === "JPY";
+  const mixed = options.sourceCurrency === "mixed";
   const lines: string[] = [];
 
   lines.push(`${options.title}: ${options.startDate} → ${options.endDate}`);
@@ -61,12 +62,12 @@ export function formatTable(entries: CostEntry[], options: FormatOptions): strin
   }
   lines.push(separator(jpyOnly));
 
-  let total = 0;
+  let totalUsd = 0;
+  let totalJpy = 0;
   for (const entry of entries) {
-    total += entry.amount;
-
     if (jpyOnly) {
       const jpy = Math.round(entry.amount);
+      totalJpy += jpy;
       lines.push(
         pad(entry.date, COL_DATE) +
           " " +
@@ -74,8 +75,22 @@ export function formatTable(entries: CostEntry[], options: FormatOptions): strin
           " " +
           padLeft(`¥${jpy.toLocaleString()}`, COL_JPY),
       );
+    } else if (entry.currency === "JPY") {
+      const jpy = Math.round(entry.amount);
+      totalJpy += jpy;
+      lines.push(
+        pad(entry.date, COL_DATE) +
+          " " +
+          pad(entry.service, COL_SERVICE) +
+          " " +
+          padLeft("", COL_USD) +
+          " " +
+          padLeft(`¥${jpy.toLocaleString()}`, COL_JPY),
+      );
     } else {
       const jpy = convertToJPY(entry.amount, options.rate);
+      totalUsd += entry.amount;
+      totalJpy += jpy;
       lines.push(
         pad(entry.date, COL_DATE) +
           " " +
@@ -95,7 +110,6 @@ export function formatTable(entries: CostEntry[], options: FormatOptions): strin
   lines.push(separator(jpyOnly));
 
   if (jpyOnly) {
-    const totalJpy = Math.round(total);
     lines.push(
       pad("TOTAL", COL_DATE) +
         " " +
@@ -103,14 +117,23 @@ export function formatTable(entries: CostEntry[], options: FormatOptions): strin
         " " +
         padLeft(`¥${totalJpy.toLocaleString()}`, COL_JPY),
     );
-  } else {
-    const totalJpy = convertToJPY(total, options.rate);
+  } else if (mixed) {
     lines.push(
       pad("TOTAL", COL_DATE) +
         " " +
         pad("", COL_SERVICE) +
         " " +
-        padLeft(`$${total.toFixed(2)}`, COL_USD) +
+        padLeft("", COL_USD) +
+        " " +
+        padLeft(`¥${totalJpy.toLocaleString()}`, COL_JPY),
+    );
+  } else {
+    lines.push(
+      pad("TOTAL", COL_DATE) +
+        " " +
+        pad("", COL_SERVICE) +
+        " " +
+        padLeft(`$${totalUsd.toFixed(2)}`, COL_USD) +
         " " +
         padLeft(`¥${totalJpy.toLocaleString()}`, COL_JPY),
     );
@@ -134,4 +157,19 @@ export function fillZeroDays(entries: CostEntry[], startDate: string, endDate: s
   }
 
   return filled.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export interface ProviderResult {
+  name: string;
+  entries: CostEntry[];
+}
+
+export function mergeProviders(results: ProviderResult[]): CostEntry[] {
+  const allEntries: CostEntry[] = [];
+  for (const result of results) {
+    for (const entry of result.entries) {
+      allEntries.push({ ...entry, service: `${result.name} / ${entry.service}` });
+    }
+  }
+  return allEntries;
 }

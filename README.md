@@ -66,6 +66,22 @@ npx tsx src/cli.ts gcp --start 2026-02-01 --end 2026-02-20
 
 > **注意:** GCP の請求通貨が JPY の場合、為替変換なしで JPY のみ表示されます。
 
+### All Providers（統合表示）
+
+```bash
+# 設定済みの全プロバイダーのコストをまとめて表示
+npx tsx src/cli.ts all
+
+# 期間指定
+npx tsx src/cli.ts all --start 2026-02-01 --end 2026-02-20
+
+# AWS profileを明示的に指定
+npx tsx src/cli.ts all --profile cost-viewer
+```
+
+> **注意:** 環境変数で設定されていないプロバイダーは自動的にスキップされます。
+> API呼び出しに失敗したプロバイダーは警告を表示してスキップし、残りを表示します。
+
 ### 出力例
 
 ```

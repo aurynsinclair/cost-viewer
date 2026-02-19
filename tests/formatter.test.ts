@@ -96,6 +96,43 @@ describe("formatTable with JPY source currency", () => {
   });
 });
 
+describe("formatTable with mixed currency", () => {
+  const mixedOptions = {
+    title: "Cost Report (AWS + GCP)",
+    startDate: "2026-02-01",
+    endDate: "2026-02-20",
+    rate: 150,
+    sourceCurrency: "mixed",
+  };
+
+  it("shows USD amount for USD entries and blank for JPY entries", () => {
+    const entries: CostEntry[] = [
+      { date: "2026-02-01", service: "AWS / EC2", amount: 1.23, currency: "USD" },
+      { date: "2026-02-01", service: "GCP / Cloud Run", amount: 100, currency: "JPY" },
+    ];
+    const output = formatTable(entries, mixedOptions);
+    expect(output).toContain("$1.23");
+    expect(output).toContain("¥185"); // Math.round(1.23 * 150)
+    expect(output).toContain("¥100");
+  });
+
+  it("shows exchange rate in header", () => {
+    const output = formatTable([], mixedOptions);
+    expect(output).toContain("Exchange rate: 1 USD = ¥150.00");
+  });
+
+  it("shows only JPY in TOTAL row", () => {
+    const entries: CostEntry[] = [
+      { date: "2026-02-01", service: "AWS / EC2", amount: 1.00, currency: "USD" },
+      { date: "2026-02-01", service: "GCP / Run", amount: 100, currency: "JPY" },
+    ];
+    const output = formatTable(entries, mixedOptions);
+    const totalLine = output.split("\n").find(l => l.startsWith("TOTAL"));
+    expect(totalLine).toContain("¥250"); // 150 + 100
+    expect(totalLine).not.toContain("$");
+  });
+});
+
 describe("fillZeroDays", () => {
   it("inserts a '-' entry for dates with no costs", () => {
     const entries: CostEntry[] = [
