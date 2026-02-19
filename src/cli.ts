@@ -3,6 +3,7 @@ import "dotenv/config";
 import { Command } from "commander";
 import { getAwsCosts } from "./providers/aws.js";
 import { getOpenAiCosts } from "./providers/openai.js";
+import { getGcpCosts } from "./providers/gcp.js";
 import { fetchExchangeRate } from "./currency.js";
 import { formatTable, fillZeroDays } from "./formatter.js";
 
@@ -21,7 +22,7 @@ const program = new Command();
 program
   .name("cost-viewer")
   .description("View cloud/AI service costs in JPY")
-  .version("0.2.0");
+  .version("0.3.0");
 
 program
   .command("aws")
@@ -92,6 +93,56 @@ program
         startDate: opts.start,
         endDate: opts.end,
         rate,
+      });
+
+      console.log(output);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`Error: ${message}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command("gcp")
+  .description("Show GCP costs via BigQuery billing export")
+  .option("--start <date>", "Start date (YYYY-MM-DD)", defaultStartDate())
+  .option("--end <date>", "End date (YYYY-MM-DD)", defaultEndDate())
+  .option("--project <id>", "GCP project ID (or env: GCP_PROJECT_ID)")
+  .option("--dataset <name>", "BigQuery dataset name (or env: GCP_BILLING_DATASET)")
+  .option("--table <name>", "BigQuery table name (or env: GCP_BILLING_TABLE)")
+  .option("--key-file <path>", "Service account JSON key file (or env: GOOGLE_APPLICATION_CREDENTIALS)")
+  .action(async (opts) => {
+    const projectId = opts.project ?? process.env["GCP_PROJECT_ID"];
+    const dataset = opts.dataset ?? process.env["GCP_BILLING_DATASET"];
+    const table = opts.table ?? process.env["GCP_BILLING_TABLE"];
+    const keyFile = opts.keyFile ?? process.env["GOOGLE_APPLICATION_CREDENTIALS"];
+
+    if (!projectId || !dataset || !table) {
+      console.error(
+        "Error: GCP project ID, dataset, and table are required.\n" +
+          "Use --project, --dataset, --table or set GCP_PROJECT_ID, GCP_BILLING_DATASET, GCP_BILLING_TABLE.",
+      );
+      process.exit(1);
+    }
+
+    try {
+      const rawEntries = await getGcpCosts({
+        startDate: opts.start,
+        endDate: opts.end,
+        projectId,
+        dataset,
+        table,
+        keyFile,
+      });
+      const entries = fillZeroDays(rawEntries, opts.start, opts.end);
+
+      const output = formatTable(entries, {
+        title: "GCP Cost Report",
+        startDate: opts.start,
+        endDate: opts.end,
+        rate: 0,
+        sourceCurrency: "JPY",
       });
 
       console.log(output);

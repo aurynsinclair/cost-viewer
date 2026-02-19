@@ -60,6 +60,42 @@ describe("formatTable", () => {
   });
 });
 
+describe("formatTable with JPY source currency", () => {
+  const jpyOptions = {
+    title: "GCP Cost Report",
+    startDate: "2026-02-01",
+    endDate: "2026-02-20",
+    rate: 0,
+    sourceCurrency: "JPY",
+  };
+
+  it("shows JPY billing header instead of exchange rate", () => {
+    const output = formatTable([], jpyOptions);
+    expect(output).toContain("GCP Cost Report");
+    expect(output).toContain("JPY billing");
+    expect(output).not.toContain("Exchange rate");
+  });
+
+  it("shows only JPY column without USD", () => {
+    const entries: CostEntry[] = [
+      { date: "2026-02-01", service: "Cloud Run", amount: 123, currency: "JPY" },
+    ];
+    const output = formatTable(entries, jpyOptions);
+    expect(output).toContain("¥123");
+    expect(output).not.toContain("$");
+  });
+
+  it("calculates JPY total correctly", () => {
+    const entries: CostEntry[] = [
+      { date: "2026-02-01", service: "Cloud Run", amount: 100, currency: "JPY" },
+      { date: "2026-02-01", service: "BigQuery", amount: 50, currency: "JPY" },
+    ];
+    const output = formatTable(entries, jpyOptions);
+    expect(output).toContain("TOTAL");
+    expect(output).toContain("¥150");
+  });
+});
+
 describe("fillZeroDays", () => {
   it("inserts a '-' entry for dates with no costs", () => {
     const entries: CostEntry[] = [
@@ -90,5 +126,14 @@ describe("fillZeroDays", () => {
     const filled = fillZeroDays(entries, "2026-02-16", "2026-02-19");
 
     expect(filled.map(e => e.date)).toEqual(["2026-02-16", "2026-02-17", "2026-02-18"]);
+  });
+
+  it("uses the currency from existing entries for zero-day fills", () => {
+    const entries: CostEntry[] = [
+      { date: "2026-02-16", service: "Cloud Run", amount: 100, currency: "JPY" },
+    ];
+    const filled = fillZeroDays(entries, "2026-02-15", "2026-02-18");
+    const zeroDayEntry = filled.find(e => e.date === "2026-02-15");
+    expect(zeroDayEntry?.currency).toBe("JPY");
   });
 });

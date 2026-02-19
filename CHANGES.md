@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.3.0 (2026-02-20)
+
+### Added
+- GCP cost integration (`cost-viewer gcp`) via BigQuery billing export
+- Options: `--project`, `--dataset`, `--table`, `--key-file` (or env vars)
+- JPY-native display for GCP (no USD conversion needed)
+- Formatter: `sourceCurrency` option for non-USD cost sources
+
+### Changed
+- `fillZeroDays` now preserves the source currency from existing entries
+- `FormatOptions` gains optional `sourceCurrency` field
+
 ## v0.2.1 (2026-02-19)
 
 ### Fixed

@@ -6,7 +6,7 @@ AI/クラウドサービスのコストを、月次確定前に円建てで確�
 
 - AWS (Cost Explorer API)
 - OpenAI (Admin API)
-- GCP — 今後追加予定
+- GCP (BigQuery billing export)
 
 ## インストール
 
@@ -42,6 +42,25 @@ npx tsx src/cli.ts openai --api-key sk-admin-...
 # 期間指定
 npx tsx src/cli.ts openai --start 2026-02-01 --end 2026-02-19
 ```
+
+### GCP
+
+```bash
+# 環境変数で設定（推奨）
+export GCP_PROJECT_ID=my-project
+export GCP_BILLING_DATASET=billing_export
+export GCP_BILLING_TABLE=gcp_billing_export_v1_XXXXXX
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
+npx tsx src/cli.ts gcp
+
+# またはオプションで直接指定
+npx tsx src/cli.ts gcp --project my-project --dataset billing_export --table gcp_billing_export_v1_XXXXXX --key-file /path/to/key.json
+
+# 期間指定
+npx tsx src/cli.ts gcp --start 2026-02-01 --end 2026-02-20
+```
+
+> **注意:** GCP の請求通貨が JPY の場合、為替変換なしで JPY のみ表示されます。
 
 ### 出力例
 
@@ -118,6 +137,48 @@ export OPENAI_ADMIN_API_KEY=sk-admin-...
 
 # または PowerShell
 $env:OPENAI_ADMIN_API_KEY="sk-admin-..."
+```
+
+---
+
+## GCP セットアップ
+
+### 1. BigQuery 請求データエクスポート
+
+GCP Console → 「お支払い」→ 「請求データのエクスポート」で、BigQuery への標準使用料金エクスポートを有効にしてください。
+
+> **注意:** エクスポート設定後、データが BigQuery に反映されるまで数時間〜1日かかります。
+
+### 2. サービスアカウントの作成
+
+BigQuery にクエリを実行するためのサービスアカウントが必要です。
+
+**必要なロール:**
+- `roles/bigquery.jobUser`（プロジェクトレベル — クエリ実行権限）
+- `roles/bigquery.dataViewer`（データセットレベル — テーブル読み取り権限）
+
+```bash
+# サービスアカウント作成
+gcloud iam service-accounts create cost-viewer --display-name="Cost Viewer"
+
+# ロール付与
+gcloud projects add-iam-policy-binding PROJECT_ID \
+  --member="serviceAccount:cost-viewer@PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/bigquery.jobUser"
+
+# キーファイル生成
+gcloud iam service-accounts keys create key.json \
+  --iam-account=cost-viewer@PROJECT_ID.iam.gserviceaccount.com
+```
+
+### 3. 認証情報の設定
+
+```bash
+# 環境変数で設定
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json
+
+# または .env ファイルに記載
+# GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json
 ```
 
 ---

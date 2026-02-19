@@ -14,16 +14,11 @@ function padLeft(s: string, width: number): string {
   return s.length >= width ? s.slice(0, width) : " ".repeat(width - s.length) + s;
 }
 
-function separator(): string {
-  return (
-    "-".repeat(COL_DATE) +
-    " " +
-    "-".repeat(COL_SERVICE) +
-    " " +
-    "-".repeat(COL_USD) +
-    " " +
-    "-".repeat(COL_JPY)
-  );
+function separator(jpyOnly: boolean): string {
+  const base = "-".repeat(COL_DATE) + " " + "-".repeat(COL_SERVICE) + " ";
+  return jpyOnly
+    ? base + "-".repeat(COL_JPY)
+    : base + "-".repeat(COL_USD) + " " + "-".repeat(COL_JPY);
 }
 
 export interface FormatOptions {
@@ -32,66 +27,101 @@ export interface FormatOptions {
   endDate: string;
   profile?: string;
   rate: number;
+  sourceCurrency?: string;
 }
 
 export function formatTable(entries: CostEntry[], options: FormatOptions): string {
+  const jpyOnly = options.sourceCurrency === "JPY";
   const lines: string[] = [];
 
   lines.push(`${options.title}: ${options.startDate} → ${options.endDate}`);
   const profilePart = options.profile ? `Profile: ${options.profile} | ` : "";
-  lines.push(`${profilePart}Exchange rate: 1 USD = ¥${options.rate.toFixed(2)}`);
+  if (jpyOnly) {
+    lines.push(profilePart ? `${profilePart}(JPY billing)` : "(JPY billing)");
+  } else {
+    lines.push(`${profilePart}Exchange rate: 1 USD = ¥${options.rate.toFixed(2)}`);
+  }
   lines.push("");
 
   // Header
-  lines.push(
-    pad("Date", COL_DATE) +
-      " " +
-      pad("Service", COL_SERVICE) +
-      " " +
-      padLeft("USD", COL_USD) +
-      " " +
-      padLeft("JPY", COL_JPY)
-  );
-  lines.push(separator());
-
-  let totalUsd = 0;
-  for (const entry of entries) {
-    const jpy = convertToJPY(entry.amount, options.rate);
-    totalUsd += entry.amount;
-
+  if (jpyOnly) {
     lines.push(
-      pad(entry.date, COL_DATE) +
-        " " +
-        pad(entry.service, COL_SERVICE) +
-        " " +
-        padLeft(`$${entry.amount.toFixed(2)}`, COL_USD) +
-        " " +
-        padLeft(`¥${jpy.toLocaleString()}`, COL_JPY)
+      pad("Date", COL_DATE) + " " + pad("Service", COL_SERVICE) + " " + padLeft("JPY", COL_JPY),
     );
+  } else {
+    lines.push(
+      pad("Date", COL_DATE) +
+        " " +
+        pad("Service", COL_SERVICE) +
+        " " +
+        padLeft("USD", COL_USD) +
+        " " +
+        padLeft("JPY", COL_JPY),
+    );
+  }
+  lines.push(separator(jpyOnly));
+
+  let total = 0;
+  for (const entry of entries) {
+    total += entry.amount;
+
+    if (jpyOnly) {
+      const jpy = Math.round(entry.amount);
+      lines.push(
+        pad(entry.date, COL_DATE) +
+          " " +
+          pad(entry.service, COL_SERVICE) +
+          " " +
+          padLeft(`¥${jpy.toLocaleString()}`, COL_JPY),
+      );
+    } else {
+      const jpy = convertToJPY(entry.amount, options.rate);
+      lines.push(
+        pad(entry.date, COL_DATE) +
+          " " +
+          pad(entry.service, COL_SERVICE) +
+          " " +
+          padLeft(`$${entry.amount.toFixed(2)}`, COL_USD) +
+          " " +
+          padLeft(`¥${jpy.toLocaleString()}`, COL_JPY),
+      );
+    }
   }
 
   if (entries.length === 0) {
     lines.push("(no costs found for this period)");
   }
 
-  lines.push(separator());
+  lines.push(separator(jpyOnly));
 
-  const totalJpy = convertToJPY(totalUsd, options.rate);
-  lines.push(
-    pad("TOTAL", COL_DATE) +
-      " " +
-      pad("", COL_SERVICE) +
-      " " +
-      padLeft(`$${totalUsd.toFixed(2)}`, COL_USD) +
-      " " +
-      padLeft(`¥${totalJpy.toLocaleString()}`, COL_JPY)
-  );
+  if (jpyOnly) {
+    const totalJpy = Math.round(total);
+    lines.push(
+      pad("TOTAL", COL_DATE) +
+        " " +
+        pad("", COL_SERVICE) +
+        " " +
+        padLeft(`¥${totalJpy.toLocaleString()}`, COL_JPY),
+    );
+  } else {
+    const totalJpy = convertToJPY(total, options.rate);
+    lines.push(
+      pad("TOTAL", COL_DATE) +
+        " " +
+        pad("", COL_SERVICE) +
+        " " +
+        padLeft(`$${total.toFixed(2)}`, COL_USD) +
+        " " +
+        padLeft(`¥${totalJpy.toLocaleString()}`, COL_JPY),
+    );
+  }
 
   return lines.join("\n");
 }
 
 export function fillZeroDays(entries: CostEntry[], startDate: string, endDate: string): CostEntry[] {
   const datesWithEntry = new Set(entries.map(e => e.date));
+  const entryCurrency = entries.length > 0 ? entries[0].currency : "USD";
   const filled = [...entries];
 
   const start = new Date(startDate + "T00:00:00Z");
@@ -99,7 +129,7 @@ export function fillZeroDays(entries: CostEntry[], startDate: string, endDate: s
   for (let d = new Date(start); d < end; d.setUTCDate(d.getUTCDate() + 1)) {
     const dateStr = d.toISOString().slice(0, 10);
     if (!datesWithEntry.has(dateStr)) {
-      filled.push({ date: dateStr, service: "-", amount: 0, currency: "USD" });
+      filled.push({ date: dateStr, service: "-", amount: 0, currency: entryCurrency });
     }
   }
 
