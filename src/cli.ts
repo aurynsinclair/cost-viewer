@@ -160,6 +160,7 @@ program
   .option("--start <date>", "Start date (YYYY-MM-DD)", defaultStartDate())
   .option("--end <date>", "End date (YYYY-MM-DD)", defaultEndDate())
   .option("--profile <name>", "AWS profile name (or env: AWS_PROFILE)")
+  .option("--key-file <path>", "GCP service account JSON key file (or env: GOOGLE_APPLICATION_CREDENTIALS)")
   .action(async (opts) => {
     let rate: number;
     try {
@@ -205,7 +206,7 @@ program
     const gcpProjectId = process.env["GCP_PROJECT_ID"];
     const gcpDataset = process.env["GCP_BILLING_DATASET"];
     const gcpTable = process.env["GCP_BILLING_TABLE"];
-    const gcpKeyFile = process.env["GOOGLE_APPLICATION_CREDENTIALS"];
+    const gcpKeyFile = opts.keyFile ?? process.env["GOOGLE_APPLICATION_CREDENTIALS"];
     if (gcpProjectId && gcpDataset && gcpTable) {
       providerPromises.push(
         getGcpCosts({
